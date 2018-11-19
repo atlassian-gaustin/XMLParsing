@@ -171,6 +171,15 @@ open class XMLDecoder {
         }
     }
     
+    /// The strategy to use for automatically changing the value of keys before decoding.
+    public enum KeyParseStrategy {
+        /// Use the parsed key. This is the default strategy.
+        case useParsedKey
+        
+        /// Replace the key with the specified key.
+        case custom((_ parentKey: String, _ key: String) -> String)
+    }
+    
     /// The strategy to use in decoding dates. Defaults to `.secondsSince1970`.
     open var dateDecodingStrategy: DateDecodingStrategy = .secondsSince1970
     
@@ -182,6 +191,9 @@ open class XMLDecoder {
     
     /// The strategy to use for decoding keys. Defaults to `.useDefaultKeys`.
     open var keyDecodingStrategy: KeyDecodingStrategy = .useDefaultKeys
+    
+    /// The strategy to use for parsing keys. Defaults to `.useParsedKey`.
+    open var keyParseStrategy: KeyParseStrategy = .useParsedKey
     
     /// Contextual user-provided information for use during decoding.
     open var userInfo: [CodingUserInfoKey : Any] = [:]
@@ -219,7 +231,7 @@ open class XMLDecoder {
     open func decode<T : Decodable>(_ type: T.Type, from data: Data) throws -> T {
         let topLevel: [String: Any]
         do {
-            topLevel = try _XMLStackParser.parse(with: data)
+            topLevel = try _XMLStackParser.parse(with: data, keyParseStrategy: keyParseStrategy)
         } catch {
             throw DecodingError.dataCorrupted(DecodingError.Context(codingPath: [], debugDescription: "The given data was not valid XML.", underlyingError: error))
         }

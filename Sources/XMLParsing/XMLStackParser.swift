@@ -249,6 +249,7 @@ extension String {
 }
 
 internal class _XMLStackParser: NSObject, XMLParserDelegate {
+    let keyParseStrategy: XMLDecoder.KeyParseStrategy
     var root: _XMLElement?
     var stack = [_XMLElement]()
     var currentNode: _XMLElement?
@@ -256,8 +257,8 @@ internal class _XMLStackParser: NSObject, XMLParserDelegate {
     var currentElementName: String?
     var currentElementData = ""
     
-    static func parse(with data: Data) throws -> [String: Any] {
-        let parser = _XMLStackParser()
+    static func parse(with data: Data, keyParseStrategy: XMLDecoder.KeyParseStrategy) throws -> [String: Any] {
+        let parser = _XMLStackParser(keyParseStrategy: keyParseStrategy)
         
         do {
             if let node = try parser.parse(with: data) {
@@ -268,6 +269,10 @@ internal class _XMLStackParser: NSObject, XMLParserDelegate {
         } catch {
             throw error
         }
+    }
+    
+    init(keyParseStrategy: XMLDecoder.KeyParseStrategy) {
+        self.keyParseStrategy = keyParseStrategy
     }
     
     func parse(with data: Data) throws -> _XMLElement?  {
@@ -291,13 +296,21 @@ internal class _XMLStackParser: NSObject, XMLParserDelegate {
     func parser(_ parser: XMLParser, didStartElement elementName: String, namespaceURI: String?, qualifiedName qName: String?, attributes attributeDict: [String : String] = [:]) {
         let node = _XMLElement(key: elementName)
         node.attributes = attributeDict
+        node.attributes[""] = elementName
         stack.append(node)
         
         if let currentNode = currentNode {
-            if currentNode.children[elementName] != nil {
-                currentNode.children[elementName]?.append(node)
+            var elementKey = elementName
+            switch keyParseStrategy {
+            case .useParsedKey:
+                break
+            case let .custom(modifier):
+                elementKey = modifier(currentNode.key, elementName)
+            }
+            if currentNode.children[elementKey] != nil {
+                currentNode.children[elementKey]?.append(node)
             } else {
-                currentNode.children[elementName] = [node]
+                currentNode.children[elementKey] = [node]
             }
         }
         currentNode = node
